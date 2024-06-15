@@ -13,24 +13,33 @@ def start_client(port, peer_ip, peer_port):
     global client_socket
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.bind(('localhost', port))
-    client_socket.settimeout(ACK_TIMEOUT)
+   # client_socket.settimeout(ACK_TIMEOUT)
+    
 
 def send(peer_ip, peer_port):
     while True:
-        msg = input("Digite a mensagem para enviar: ")        
-        if os.path.isfile(msg):
-            with open(msg, 'r') as f:
-                lines = f.read()
-            msg = f"{msg}\\n{lines}"
+        msg = input("Digite a mensagem para enviar: ")
         
-        client_socket.sendto(msg.encode(), (peer_ip, peer_port))
-        
-        # Aguarde pela resposta ACK
-        try:
-            ack, _ = client_socket.recvfrom(1024)
-            print(f"ACK recebido para a mensagem: {msg.split('\\n')[0]}")
-        except socket.timeout:
-            print("Timeout: ACK não recebido.")
+        if msg:  # Verifica se uma mensagem foi digitada
+            if os.path.isfile(msg):
+                with open(msg, 'r') as f:
+                    lines = f.read()
+                msg = f"{msg}\\n{lines}"
+            
+            client_socket.sendto(msg.encode(), (peer_ip, peer_port))
+            
+            # Defina um timeout antes de esperar pelo ACK
+            client_socket.settimeout(ACK_TIMEOUT)
+            
+            try:
+                ack, _ = client_socket.recvfrom(1024)
+                print(f"ACK recebido para a mensagem: {msg.split('\\n')[0]}")
+            except socket.timeout:
+                print("Timeout: ACK não recebido.")
+            
+            # Remova o timeout após tentar receber o ACK
+            client_socket.settimeout(None)
+
 
 def receive():
     while True:
