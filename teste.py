@@ -1,5 +1,6 @@
 import socket
 import threading
+import os
 
 # Defina client_socket como uma variável global
 client_socket = None
@@ -24,13 +25,10 @@ def receive():
     while True:
         try:
             data, addr = client_socket.recvfrom(1024)
-            filename =  data.decode()
-            #filename = filename[2].split("\\n")
-            #print(filename)
-            content = '\\n'.join(message.decode().split('\\n')[1:])
+            filename =  data.decode().split('\\n')[0]
+            content = '\\n'.join(data.decode().split('\\n')[1:])
             content = content + "PPP"+ "\n" #Teste se atualiza o documento
-            #print(content)                
-            with open(filename[0], 'w') as f:
+            with open(filename, 'w') as f:
                 f.write(content)
             print(f"Received file {filename}")
             
