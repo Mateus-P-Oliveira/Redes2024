@@ -3,7 +3,7 @@ import threading
 import os
 import time
 
-# Defina client_socket como uma variável global
+# Define client_socket como uma variável global
 client_socket = None
 ack_counter = 0
 # Adicione um timeout ao socket para esperar pela resposta ACK
@@ -121,30 +121,36 @@ def send(peer_ip, peer_port):
 def receive():
     buffer = {}  # Dicionário para armazenar partes recebidas
     expected_seq = 0  # Número de sequência esperado inicial
+    filename_defined = False  # Indica se o nome do arquivo já foi definido
+    filename = ''  # Nome do arquivo a ser escrito
+    transmission_ended = False  # Indica se a transmissão terminou
     
-    while True:
+    while not transmission_ended:
         try:
             data, addr = client_socket.recvfrom(1024)
+            if data == b'':  # Se nenhum dado for recebido, assume que a transmissão terminou
+                transmission_ended = True
+                continue
+
             sequence_number = int.from_bytes(data[:2], 'big')
             content = data[2:-2]  # Assume that the last two bytes are CRC
-
 
             # Calcula o CRC recebido e compara com o calculado
             received_crc = int.from_bytes(data[-2:], 'big')
             calculated_crc = calculate_crc(data[:-2])
-            print("UUUUUUUUUU")
-            print(received_crc)
-            print("********")
-            print(calculated_crc)
            
             if received_crc == calculated_crc:
                 if sequence_number == expected_seq:
-                    buffer[sequence_number] = content
+                    if not filename_defined:  # Se é o primeiro pacote, define o nome do arquivo
+                        filename = content.decode()
+                        filename_defined = True
+                    else:
+                        buffer[sequence_number] = content
                     expected_seq = (expected_seq + 1) % 256
                     ack_msg = expected_seq.to_bytes(2, 'big') + b"ACK"
                     client_socket.sendto(ack_msg, addr)
                 else:
-                    # Send ACK for the last in-order packet received
+                    
                     last_ack_seq = (expected_seq - 1) % 256
                     ack_msg = last_ack_seq.to_bytes(2, 'big') + b"ACK"
                     client_socket.sendto(ack_msg, addr)
@@ -154,6 +160,13 @@ def receive():
         except Exception as e:
             print(f"Erro: {e}")
             break  # Sai do loop em caso de erro
+
+    # Após sair do loop, escreve o conteúdo ordenado no arquivo
+    if filename_defined and not transmission_ended:
+        with open(filename, 'w') as file:
+            for seq in sorted(buffer):
+                file.write(buffer[seq])
+
 
             
 #---------------------------------------
